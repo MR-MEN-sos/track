@@ -1,0 +1,486 @@
+
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostTrack - Cyber Location Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            background-color: #050505;
+            color: #e1e1e1;
+            font-family: 'Courier New', monospace;
+        }
+        #map { 
+            height: 60vh; 
+            width: 100%;
+            filter: grayscale(80%) hue-rotate(120deg);
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding-top: 5%;
+        }
+        .tracking-consent {
+            display: none;
+        }
+        .blink {
+            animation: blink-animation 1s steps(5, start) infinite;
+        }
+        @keyframes blink-animation {
+            to {
+                opacity: 0.2;
+            }
+        }
+        input, button {
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4ade80;
+            box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <header class="bg-black text-green-400 p-4 border-b border-green-500 mb-6 font-mono">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold tracking-wider">MIENTrack</h1>
+                    <span class="ml-2 px-2 py-1 text-xs bg-black text-green-400 border border-green-500 rounded">v1.0.0</span>
+                </div>
+                <div id="userStatus" class="text-xs bg-black text-green-400 px-3 py-1 border border-green-500 rounded-full blink"></div>
+            </div>
+            <p class="text-xs mt-2 text-green-300">Cyber Security Location Tracker</p>
+        </header>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="login-container bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4 text-center">Login or Register</h2>
+            <div class="space-y-4">
+                <div id="locationConsent" class="hidden p-3 bg-black bg-opacity-20 border border-green-500 rounded mb-2">
+                    <div class="flex items-start">
+                        <input id="allowLocation" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <label for="allowLocation" class="ml-2 text-xs text-green-300">Allow location access to activate tracking features</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                <button id="loginBtn" class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700">Login</button>
+            </div>
+        </div>
+
+        <!-- Main Content (Hidden Initially) -->
+        <div id="mainContent" class="hidden">
+            <!-- User Controls -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                <div class="flex items-center space-x-4">
+                   
+                    <div>
+                        <h2 id="displayName" class="font-semibold">Welcome</h2>
+                        <p id="lastUpdate" class="text-xs text-gray-500">Status: Not tracking</p>
+                    </div>
+                </div>
+                
+                <div class="my-4 p-4 border border-gray-200 rounded-lg">
+                    <h3 class="font-medium mb-2">Tracking Options</h3>
+                    <div class="space-y-3">
+                        <div class="tracking-consent" id="tracker1">
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="text-gray-700">Track this device</span>
+                            </label>
+                            <div class="flex mt-2 space-x-2">
+                                <button class="start-tracking bg-green-500 text-white px-3 py-1 text-sm rounded hover:bg-green-600">Start Sharing</button>
+                                <button class="stop-tracking bg-red-500 text-white px-3 py-1 text-sm rounded hover:bg-red-600 hidden">Stop Sharing</button>
+                            </div>
+                        </div>
+                        
+                        <div id="telegramForm" class="mt-4 p-4 bg-black bg-opacity-30 border-2 border-green-600 rounded-lg">
+                            <label class="block text-sm font-medium text-green-300 mb-1">Telegram Bot</label>
+                            <div class="flex space-x-2 mb-2">
+                                <input type="text" id="telegramChatId" placeholder="Chat ID" class="flex-1 bg-black bg-opacity-50 text-green-300 border border-green-500 rounded-md shadow-sm p-2">
+                                <button id="saveTelegramBtn" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700">Save</button>
+                            </div>
+                            <p class="text-xs text-green-300">Will send location updates to your Telegram</p>
+                        </div>
+
+                        <div id="trackFriendsForm" class="mt-4">
+                            <label class="block text-sm font-medium text-green-300 mb-1">Track Target</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="friendCode" placeholder="Enter friend's code" class="flex-1 border border-gray-300 rounded-md shadow-sm p-2">
+                                <button id="addFriendBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Track</button>
+                            </div>
+                            <p class="text-xs mt-1 text-gray-500">Your code: <span id="userCode" class="font-mono bg-gray-100 p-1">NOTLOGGEDIN</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Display -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <span>Live Location Map</span>
+                    <span id="trackingIndicator" class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full hidden blink">LIVE</span>
+                </h2>
+                <div id="map"></div>
+                <div class="mt-4 text-sm text-gray-600">
+                    <p class="font-medium">Tracking history (last 24h):</p>
+                    <div id="historyList" class="mt-2 space-y-1">
+                        <!-- History will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Friends List Section -->
+        <div id="friendsSection" class="hidden bg-white p-4 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Your Tracked Contacts</h2>
+            <div id="friendsList" class="space-y-2">
+                <!-- Friends will be populated by JavaScript -->
+                <div class="text-center text-gray-500">No contacts being tracked yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let appState = {
+            loggedIn: false,
+            username: '',
+            userCode: '',
+            tracking: false,
+            watchId: null,
+            telegramChatId: '',
+            friends: [],
+            locations: {}
+        };
+
+        // Telegram Bot Settings
+        const TELEGRAM_BOT_TOKEN = '7730607878:AAGxuyvanHz8N-OZQBVgeIZSs2uhBTNPxyQ';
+        const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+        async function sendToTelegram(message) {
+            if (!appState.telegramChatId) return;
+            
+            try {
+                await fetch(TELEGRAM_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: appState.telegramChatId,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+            } catch (error) {
+                console.error('Telegram error:', error);
+            }
+        }
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const mainContent = document.getElementById('mainContent');
+        const userStatus = document.getElementById('userStatus');
+        const displayName = document.getElementById('displayName');
+        const userCode = document.getElementById('userCode');
+        const loginBtn = document.getElementById('loginBtn');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const trackingIndicator = document.getElementById('trackingIndicator');
+        const lastUpdate = document.getElementById('lastUpdate');
+        const historyList = document.getElementById('historyList');
+        const friendsList = document.getElementById('friendsList');
+        const friendsSection = document.getElementById('friendsSection');
+        const friendCode = document.getElementById('friendCode');
+        const addFriendBtn = document.getElementById('addFriendBtn');
+
+        // Map initialization
+        let map;
+        let userMarker;
+        let friendMarkers = {};
+        let locationHistory = [];
+
+        // Initialize localStorage
+        if (!localStorage.getItem('users')) {
+            localStorage.setItem('users', JSON.stringify({}));
+        }
+
+        // Initialize application
+        function init() {
+            // Check if already logged in
+            if (localStorage.getItem('currentUser')) {
+                const users = JSON.parse(localStorage.getItem('users'));
+                const username = localStorage.getItem('currentUser');
+                if (users[username]) {
+                    loginUser(username);
+                }
+            }
+
+            // Initialize map (centered on Indonesia)
+            map = L.map('map').setView([-2.5489, 118.0149], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Set up event listeners
+            loginBtn.addEventListener('click', handleLogin);
+            document.querySelector('.start-tracking').addEventListener('click', startTracking);
+            document.querySelector('.stop-tracking').addEventListener('click', stopTracking);
+            addFriendBtn.addEventListener('click', addFriendToTrack);
+
+            // Show tracking sections if logged in
+            if (appState.loggedIn) {
+                document.querySelector('.tracking-consent').style.display = 'block';
+                document.getElementById('locationConsent').classList.remove('hidden');
+            }
+        }
+
+        // Handle login functionality
+        function handleLogin() {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users'));
+            
+            // Simple registration if user doesn't exist
+            if (!users[username]) {
+                users[username] = {
+                    password: password,
+                    friends: [],
+                    tracking: false,
+                    userCode: generateUserCode()
+                };
+                localStorage.setItem('users', JSON.stringify(users));
+            } else if (users[username].password !== password) {
+                alert('Incorrect password');
+                return;
+            }
+
+            loginUser(username);
+        }
+
+        // Helper to generate a simple user code
+        function generateUserCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // Login the user
+        function loginUser(username) {
+            appState.loggedIn = true;
+            appState.username = username;
+            
+            const users = JSON.parse(localStorage.getItem('users'));
+            appState.userCode = users[username].userCode;
+            appState.friends = users[username].friends || [];
+            
+            localStorage.setItem('currentUser', username);
+            
+            // Update UI
+            loginSection.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            friendsSection.classList.remove('hidden');
+            userStatus.textContent = username;
+            displayName.textContent = `Welcome, ${username}`;
+            userCode.textContent = appState.userCode;
+            document.querySelector('.tracking-consent').style.display = 'block';
+            
+            // Load friends list
+            updateFriendsList();
+        }
+
+        // Start tracking user's location
+        function startTracking() {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser");
+                return;
+            }
+
+            const startBtn = document.querySelector('.start-tracking');
+            const stopBtn = document.querySelector('.stop-tracking');
+            
+            startBtn.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+            trackingIndicator.classList.remove('hidden');
+            
+            appState.tracking = true;
+            
+            // Get position updates
+            appState.watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const timestamp = new Date().toLocaleTimeString();
+                    
+                    // Update map marker
+                    if (!userMarker) {
+                        userMarker = L.marker([latitude, longitude]).addTo(map)
+                            .bindPopup('Your current location');
+                    } else {
+                        userMarker.setLatLng([latitude, longitude]);
+                    }
+                    
+                    // Center map on user
+                    map.setView([latitude, longitude], 15);
+                    
+                    // Save location to history
+                    locationHistory.unshift({
+                        time: timestamp,
+                        lat: latitude,
+                        lng: longitude
+                    });
+                    
+                    // Keep only last 10 locations
+                    if (locationHistory.length > 10) {
+                        locationHistory.pop();
+                    }
+                    
+                    // Update UI
+                    lastUpdate.textContent = `Last updated: ${timestamp}`;
+                    updateHistoryList();
+
+                    // Send to Telegram if enabled
+                    if (document.getElementById('allowLocation').checked && appState.telegramChatId) {
+                        const mapUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+                        const message = `⚠️ LOCATION UPDATE ⚠️\n\nUser: ${appState.username}\nTime: ${timestamp}\nCoordinates: ${latitude},${longitude}\n\nView on map: ${mapUrl}`;
+                        sendToTelegram(message);
+                    }
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    alert("Error getting location: " + error.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 5000,
+                    timeout: 10000
+                }
+            );
+        }
+
+        // Stop tracking
+        function stopTracking() {
+            if (appState.watchId) {
+                navigator.geolocation.clearWatch(appState.watchId);
+                appState.watchId = null;
+            }
+            
+            const startBtn = document.querySelector('.start-tracking');
+            const stopBtn = document.querySelector('.stop-tracking');
+            
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            trackingIndicator.classList.add('hidden');
+            
+            appState.tracking = false;
+            lastUpdate.textContent = "Tracking stopped";
+        }
+
+        // Add a friend to track
+        function addFriendToTrack() {
+            const code = friendCode.value.trim();
+            friendCode.value = '';
+            
+            if (!code) {
+                alert('Please enter a friend code');
+                return;
+            }
+            
+            // In a real app, this would make an API call to verify the friend code exists
+            // For this demo, we'll just add it with a placeholder location
+            
+            const friendUsername = `Friend-${code.substring(0,3)}`;
+            
+            if (!appState.friends.includes(code)) {
+                appState.friends.push(code);
+                
+                // Update friends list in localStorage
+                const users = JSON.parse(localStorage.getItem('users'));
+                users[appState.username].friends = appState.friends;
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                // Add friend marker to map with random location (for demo)
+                const lat = -6.1754 + (Math.random() * 0.3 - 0.15);
+                const lng = 106.8272 + (Math.random() * 0.3 - 0.15);
+                
+                friendMarkers[code] = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'friend-marker',
+                        html: `<div style="background-color: #ff5733; border-radius: 50%; width: 16px; height: 16px;"></div>`,
+                        iconSize: [16, 16]
+                    })
+                }).addTo(map)
+                .bindPopup(`${friendUsername}'s location`);
+                
+                updateFriendsList();
+            } else {
+                alert('You are already tracking this friend');
+            }
+        }
+
+        // Update the friends list UI
+        function updateFriendsList() {
+            if (appState.friends.length === 0) {
+                friendsList.innerHTML = '<div class="text-center text-gray-500">No contacts being tracked yet</div>';
+                return;
+            }
+            
+            friendsList.innerHTML = '';
+            appState.friends.forEach(code => {
+                const friendDiv = document.createElement('div');
+                friendDiv.className = 'flex items-center justify-between p-3 bg-gray-50 rounded';
+                
+                friendDiv.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/54635ea2-e585-4342-99c9-d1af12ace934.png" alt="Circular profile picture of anonymous person being tracked" class="rounded-full h-10 w-10">
+                        <div>
+                            <p class="font-medium">Friend-${code.substring(0,3)}</p>
+                            <p class="text-xs text-gray-500">Code: ${code}</p>
+                        </div>
+                    </div>
+                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Active</div>
+                `;
+                
+                friendsList.appendChild(friendDiv);
+            });
+        }
+
+        // Update the location history list
+        function updateHistoryList() {
+            historyList.innerHTML = '';
+            locationHistory.forEach(loc => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between text-xs';
+                item.innerHTML = `
+                    <span>${loc.time}</span>
+                    <span>Lat: ${loc.lat.toFixed(4)}, Lng: ${loc.lng.toFixed(4)}</span>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
+```
